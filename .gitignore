@@ -1,5 +1,5 @@
 *.o
-*.exe
+*.a
 test
 bench_locks
 bench_queue
