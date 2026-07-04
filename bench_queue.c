@@ -6,7 +6,7 @@
 
 #include "thread_pool.h"
 
-#define NUM_TASKS 1000
+#define NUM_TASKS 100000
 
 atomic_int completed = 0;
 
@@ -91,7 +91,7 @@ void run_benchmark(mylock_kind_t kind, int num_workers) {
 }
 
 int main(void) {
-    int worker_counts[] = {1, 2, 4, 8, 16};
+    int worker_counts[] = {1, 2, 4, 8};
     int n = sizeof(worker_counts) / sizeof(worker_counts[0]);
 
     printf("Job Queue / Thread Pool Benchmark\n");

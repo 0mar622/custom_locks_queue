@@ -6,7 +6,7 @@
 
 #include "mylock.h"
 
-#define ITERS 1000
+#define ITERS 100000
 
 typedef enum {
     BENCH_MYLOCK,
@@ -133,7 +133,7 @@ void run_benchmark(const char *name, bench_type_t type, mylock_kind_t kind, int 
 }
 
 int main(void) {
-    int thread_counts[] = {1, 2, 4, 8, 16};
+    int thread_counts[] = {1, 2, 4, 8};
     int n = sizeof(thread_counts) / sizeof(thread_counts[0]);
     for (int i = 0; i < n; i++) {
         int t = thread_counts[i];

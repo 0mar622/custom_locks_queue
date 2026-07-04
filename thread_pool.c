@@ -5,15 +5,16 @@
 typedef struct {
     threadpool_t *pool;
     int worker_id;
-    mcs_node_t mcs_node;
 } worker_arg_t;
 
 static void *worker_loop(void *arg) {
     worker_arg_t *warg = arg;
     threadpool_t *pool = warg->pool;
     int worker_id = warg->worker_id;
-    mylock_set_mcs_node(&warg->mcs_node);
-    
+
+    mcs_node_t mcs_node;
+    mylock_set_mcs_node(&mcs_node);
+
     free(warg);
 
     for (;;) {

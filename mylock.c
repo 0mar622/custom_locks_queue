@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <limits.h>
 #include <sched.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sched.h>
 
 static int futex_wait(atomic_int *addr, int expected) {
     return syscall(SYS_futex, (int *)addr, FUTEX_WAIT,
@@ -82,6 +85,11 @@ void mylock_acquire(mylock_t *l) {
     } else if (l->kind == MYLOCK_MCS) {
         mcs_node_t *node = local_mcs_node;
 
+        if (node == NULL) {
+            fprintf(stderr, "MCS lock requires mylock_set_mcs_node()\n");
+            abort();
+        }
+
         atomic_store(&node->next, NULL);
         atomic_store(&node->locked, 1);
 
@@ -92,6 +100,7 @@ void mylock_acquire(mylock_t *l) {
             atomic_store_explicit(&pred->next, node, memory_order_release);
 
             while (atomic_load_explicit(&node->locked, memory_order_acquire)) {
+                sched_yield();
             }
         }
     }
@@ -125,6 +134,7 @@ void mylock_release(mylock_t *l) {
             }
 
             while ((succ = atomic_load_explicit(&node->next, memory_order_acquire)) == NULL) {
+                sched_yield();
             }
         }
 
