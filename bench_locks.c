@@ -49,9 +49,18 @@ void lock_release(void) {
 
 void *worker(void *arg) {
     thread_arg_t *targ = (thread_arg_t *)arg;
+
+    /*
+     * Each benchmark thread owns an MCS node. This call is harmless for
+     * non-MCS locks and required when the selected lock is MYLOCK_MCS.
+     */
     mylock_set_mcs_node(&targ->mcs_node);
 
     for (int i = 0; i < ITERS; i++) {
+        /*
+         * The critical section is intentionally tiny so the benchmark
+         * stresses lock acquisition and release overhead.
+         */
         lock_acquire();
         counter++;
         lock_release();
@@ -62,13 +71,20 @@ void *worker(void *arg) {
     return NULL;
 }
 
-void run_benchmark(const char *name, bench_type_t type, mylock_kind_t kind, int num_threads) {
+void run_benchmark(const char *name,
+                   bench_type_t type,
+                   mylock_kind_t kind,
+                   int num_threads) {
     pthread_t threads[num_threads];
     thread_arg_t args[num_threads];
 
     counter = 0;
     current_bench = type;
 
+    /*
+     * The same benchmark body is used for both the custom locks and
+     * pthread_mutex_t so their behavior can be compared directly.
+     */
     if (type == BENCH_MYLOCK) {
         mylock_init_kind(&my_lock, kind);
     } else {
@@ -100,6 +116,10 @@ void run_benchmark(const char *name, bench_type_t type, mylock_kind_t kind, int 
     double elapsed = end - start;
     double throughput = expected / elapsed;
 
+    /*
+     * Each thread performs the same fixed number of iterations. These
+     * fairness fields mainly verify that every thread completed its work.
+     */
     long min = args[0].completed;
     long max = args[0].completed;
     double sum = 0.0;
@@ -135,6 +155,7 @@ void run_benchmark(const char *name, bench_type_t type, mylock_kind_t kind, int 
 int main(void) {
     int thread_counts[] = {1, 2, 4, 8};
     int n = sizeof(thread_counts) / sizeof(thread_counts[0]);
+
     for (int i = 0; i < n; i++) {
         int t = thread_counts[i];
 

@@ -8,6 +8,7 @@
 
 #define NUM_TASKS 100000
 
+/* Counts total completed tasks across all workers. */
 atomic_int completed = 0;
 
 double now_sec(void) {
@@ -19,6 +20,10 @@ double now_sec(void) {
 void benchmark_task(void *arg) {
     (void)arg;
 
+    /*
+     * Small artificial workload so the benchmark measures both queue
+     * synchronization and useful work outside the critical section.
+     */
     volatile long x = 0;
     for (int i = 0; i < 1000; i++) {
         x += i;
@@ -40,6 +45,10 @@ void run_benchmark(mylock_kind_t kind, int num_workers) {
 
     atomic_store(&completed, 0);
 
+    /*
+     * The main thread submits jobs into the queue, so it may acquire the
+     * queue lock. If the queue uses MCS, the main thread needs a node too.
+     */
     mcs_node_t main_mcs_node;
     mylock_set_mcs_node(&main_mcs_node);
 
@@ -51,6 +60,10 @@ void run_benchmark(mylock_kind_t kind, int num_workers) {
         threadpool_submit(&pool, benchmark_task, NULL);
     }
 
+    /*
+     * Joining happens inside threadpool_destroy. tasks_done remains
+     * allocated so this benchmark can compute fairness metrics.
+     */
     threadpool_destroy(&pool);
 
     long min = pool.tasks_done[0];
@@ -61,6 +74,10 @@ void run_benchmark(mylock_kind_t kind, int num_workers) {
         if (pool.tasks_done[i] > max) max = pool.tasks_done[i];
     }
 
+    /*
+     * Fairness is measured by comparing each worker's task count to the
+     * ideal average number of tasks per worker.
+     */
     double mean = (double)NUM_TASKS / num_workers;
     double variance = 0.0;
 
@@ -77,15 +94,15 @@ void run_benchmark(mylock_kind_t kind, int num_workers) {
     double throughput = NUM_TASKS / elapsed;
 
     printf("%-8s | %2d workers | time: %.4f s | throughput: %.0f jobs/s | completed: %d/%d | min: %ld | max: %ld | variance: %.2f\n",
-       lock_name(kind),
-       num_workers,
-       elapsed,
-       throughput,
-       atomic_load(&completed),
-       NUM_TASKS,
-       min,
-       max,
-       variance);
+           lock_name(kind),
+           num_workers,
+           elapsed,
+           throughput,
+           atomic_load(&completed),
+           NUM_TASKS,
+           min,
+           max,
+           variance);
 
     free(pool.tasks_done);
 }

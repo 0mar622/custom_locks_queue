@@ -12,6 +12,10 @@ static void *worker_loop(void *arg) {
     threadpool_t *pool = warg->pool;
     int worker_id = warg->worker_id;
 
+    /*
+     * MCS locks require each thread to have its own node.
+     * This node lives for the entire lifetime of the worker thread.
+     */
     mcs_node_t mcs_node;
     mylock_set_mcs_node(&mcs_node);
 
@@ -20,18 +24,27 @@ static void *worker_loop(void *arg) {
     for (;;) {
         task_t task = jobqueue_pop(&pool->queue);
 
+        /*
+         * A NULL function is used as a shutdown marker.
+         * Each worker exits after receiving one shutdown task.
+         */
         if (task.fn == NULL) {
             break;
         }
 
         task.fn(task.arg);
+
+        /* Used by benchmarks to measure how evenly work is distributed. */
         pool->tasks_done[worker_id]++;
     }
 
     return NULL;
 }
 
-void threadpool_init_kind(threadpool_t *pool, int num_threads, int queue_capacity, mylock_kind_t kind) {
+void threadpool_init_kind(threadpool_t *pool,
+                          int num_threads,
+                          int queue_capacity,
+                          mylock_kind_t kind) {
     pool->num_threads = num_threads;
     pool->threads = malloc(sizeof(pthread_t) * num_threads);
     pool->tasks_done = calloc(num_threads, sizeof(long));
@@ -47,7 +60,9 @@ void threadpool_init_kind(threadpool_t *pool, int num_threads, int queue_capacit
     }
 }
 
-void threadpool_init(threadpool_t *pool, int num_threads, int queue_capacity) {
+void threadpool_init(threadpool_t *pool,
+                     int num_threads,
+                     int queue_capacity) {
     threadpool_init_kind(pool, num_threads, queue_capacity, MYLOCK_FUTEX);
 }
 
@@ -56,6 +71,10 @@ void threadpool_submit(threadpool_t *pool, task_fn_t fn, void *arg) {
 }
 
 void threadpool_destroy(threadpool_t *pool) {
+    /*
+     * Submit one shutdown marker per worker so every worker eventually
+     * wakes, dequeues a marker, and exits its loop.
+     */
     for (int i = 0; i < pool->num_threads; i++) {
         threadpool_submit(pool, NULL, NULL);
     }
@@ -68,4 +87,9 @@ void threadpool_destroy(threadpool_t *pool) {
 
     free(pool->threads);
     pool->threads = NULL;
+
+    /*
+     * tasks_done is intentionally not freed here because benchmarks read it
+     * after joining workers. The benchmark frees it after collecting metrics.
+     */
 }

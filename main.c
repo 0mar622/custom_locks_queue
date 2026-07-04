@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include "thread_pool.h"
 
@@ -23,6 +24,9 @@ int main(void) {
     threadpool_submit(&pool, print_task, "H");
 
     threadpool_destroy(&pool);
+
+    free(pool.tasks_done);
+    pool.tasks_done = NULL;
 
     return 0;
 }
