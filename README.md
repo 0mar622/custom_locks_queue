@@ -35,7 +35,7 @@ Metrics include:
 
 `bench_queue.c` measures lock behavior in the full concurrent job queue and thread pool.
 
-Worker counts of 1, 2, 4, 8, and 16 are tested.
+Worker counts of 1, 2, 4, and 8 are tested.
 
 Metrics include:
 
