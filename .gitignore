@@ -1,0 +1,5 @@
+*.o
+*.exe
+test
+bench_locks
+bench_queue
